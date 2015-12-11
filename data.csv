@@ -96,7 +96,7 @@ year, month, date, day, project, name, start_hh, start_mm, end_hh, end_mm
 2015, 9, 23, 3, CPSC547, Reading, 20, 34, 21, 43
 2015, 9, 23, 3, GUITAR, Practice, 23, 39, 23, 59
 2015, 9, 24, 4, GUITAR, Practice, 0, 0, 0, 35
-2015, 9, 24, 4, CPSC544, Workship, 10, 12, 1
+2015, 9, 24, 4, CPSC544, Workshop, 10, 0, 12, 1
 2015, 9, 24, 4, CPSC547, Task, 13, 5, 13, 25
 2015, 9, 24, 4, CPSC547, Lecture, 14, 1, 15, 24
 2015, 9, 24, 4, CPSC547, Task, 23, 37, 23, 59
@@ -209,7 +209,7 @@ year, month, date, day, project, name, start_hh, start_mm, end_hh, end_mm
 2015, 10, 14, 3, CPSC544, Task, 20, 10, 21, 34
 2015, 10, 15, 4, CPSC547, Reading, 2, 4, 3, 6
 2015, 10, 15, 4, CPSC547, Reading, 3, 19, 4, 24
-2015, 10, 15, 4, CPSC544, Workship, 10, 8, 12, 5
+2015, 10, 15, 4, CPSC544, Workshop, 10, 8, 12, 5
 2015, 10, 15, 4, CPSC547, Lecture, 14, 0, 15, 19
 2015, 10, 15, 4, ACM-ICPC, Practice, 21, 12, 22, 8
 2015, 10, 15, 4, ACM-ICPC, Practice, 22, 25, 23, 19
