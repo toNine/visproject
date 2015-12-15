@@ -20,16 +20,18 @@ d3.csv(
       raw_data = rows;
 
       // Globals
-      var width = 1500;
+      var width = 1400,
+          containerWidth = 1500
       var containerSelection = d3.select("#container")
-      containerSelection.style({"width": width, "margin": "auto"});
+      containerSelection.style({"width": containerWidth, "margin": "auto", "position": "relative"});
 
       // Calendar Scales and Axis
       var calendarHeight = 600,
           calendarXPadding = 50,
           calendarTopPadding = 20,
           calendarBottomPadding = 20,
-          calendarHeatmapWidthRatio = 0.75;
+          calendarHeatmapWidthRatio = 0.75,
+          calendarTotalHeight = calendarHeight + calendarBottomPadding
 
       var calendarXScale = d3.scale.ordinal()
           .domain(d3.range(1, 8))
@@ -78,14 +80,17 @@ d3.csv(
           .key(function(d) { return d.day; })
           .entries(rows);
       var heatmapStepMinutes = nestedDayEventsToStepProjectMinutes(eventsByDay, heatmapMinutesPerStep);
+      var numOfWeeks = 13 // magic number implementation
+          totalMinutesPerStep = numOfWeeks * heatmapMinutesPerStep
 
-      var calendarHeatMapColorScale = d3.scale.linear()
-          .domain([0, d3.max(heatmapStepMinutes, function(d) { return d.minutes; })])
+      var calendarHeatmapColorScale = d3.scale.linear()
+          // .domain([0, d3.max(heatmapStepMinutes, function(d) { return d.minutes; })])
+          .domain([0, 1])
           .range([d3.hsl(360, 1, 1), d3.hsl(360, 1, 0.5)]);
 
       calendar.append("g").selectAll(".step-bar").data(heatmapStepMinutes).enter()
           .append("rect")
-          .attr("fill", function(d) { return calendarHeatMapColorScale(d.minutes); })
+          .attr("fill", function(d) { return calendarHeatmapColorScale(d.minutes / totalMinutesPerStep); })
           .attr("width", calendarXScale.rangeBand() * calendarHeatmapWidthRatio)
           .attr("height", heatmapStepHeight)
           .attr("x", function(d) { return calendarXScale(+d.day) + calendarXPadding; })
@@ -233,7 +238,8 @@ d3.csv(
           .domain(projects)
 
       var bottomProjectColorScale = d3.scale.linear()
-          .domain([0, 20])
+          .domain([0, 25])
+          .clamp(true)
           .range([d3.hsl(210, 1, 1), d3.hsl(210, 1, 0.5)]);
 
       var bottomProjects = containerSelection.append("svg")
@@ -353,6 +359,62 @@ d3.csv(
       weekBars.on("mouseenter", function(d, i) { updateOverlay(d.key); })
       d3.select("body").on("click", function(d, i) { removeOverlay(); })
 
+      // Colorscale legend
+      // calendarTotalHeight, bottomBarChartHeight, projectTotalHeight
+
+      var legendSectionWidth = containerWidth - width;
+      var legendSelection = containerSelection.append("svg")
+        .attr("width", legendSectionWidth)
+        .attr("height", calendarTotalHeight + bottomBarChartHeight + projectTotalHeight)
+        .style({"position": "absolute", "right": 0, "top": 0 });
+
+      var heatmapLegendStepSize = 3,
+          heatmapLegendSteps = 150,
+          heatmapLegendYStart = 25
+      var heatmapLegendSelection = legendSelection.append("g");
+      heatmapLegendSelection.append("text")
+          .attr("x", legendSectionWidth / 2)
+          .attr("y", heatmapLegendYStart)
+          .attr("text-anchor", "middle")
+          .text("100%");
+      heatmapLegendSelection.append("text")
+          .attr("x", legendSectionWidth / 2)
+          .attr("y", heatmapLegendYStart + heatmapLegendSteps * heatmapLegendStepSize)
+          .attr("alignment-baseline", "hanging")
+          .attr("text-anchor", "middle")
+          .text("0%");
+      heatmapLegendSelection.selectAll(".heatmap").data(d3.range(0, heatmapLegendSteps).reverse()).enter()
+          .append("rect")
+          .attr("height", heatmapLegendStepSize)
+          .attr("width", legendSectionWidth / 2)
+          .attr("x", legendSectionWidth / 4)
+          .attr("y", function(d, i) { return heatmapLegendYStart + i * heatmapLegendStepSize; })
+          .attr("fill", function(d, i) { return calendarHeatmapColorScale(d / heatmapLegendSteps); })
+
+      var projectBarLegendStepSize = 2
+          projectBarLegendSteps = 50
+          projectLegendYStart = calendarTotalHeight + bottomBarChartHeight
+          projectLegendTopPadding = 25
+
+      var projectLegendSelection = legendSelection.append("g");
+      projectLegendSelection.append("text")
+          .attr("x", legendSectionWidth / 2)
+          .attr("y", projectLegendYStart + projectLegendTopPadding - 2)
+          .attr("text-anchor", "middle")
+          .text(">= 25hrs");
+      projectLegendSelection.append("text")
+          .attr("x", legendSectionWidth / 2)
+          .attr("y", projectLegendYStart + projectLegendTopPadding + projectBarLegendSteps * projectBarLegendStepSize)
+          .attr("alignment-baseline", "hanging")
+          .attr("text-anchor", "middle")
+          .text("0hrs");
+      projectLegendSelection.selectAll(".project").data(d3.range(0, projectBarLegendSteps).reverse()).enter()
+          .append("rect")
+          .attr("height", projectBarLegendStepSize)
+          .attr("width", legendSectionWidth / 2)
+          .attr("x", legendSectionWidth / 4)
+          .attr("y", function(d, i) { return projectLegendYStart + projectLegendTopPadding + i * projectBarLegendStepSize; })
+          .attr("fill", function(d, i) { return bottomProjectColorScale(d / projectBarLegendSteps * 25); })
     });
 
 /*
