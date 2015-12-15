@@ -10,15 +10,14 @@ d3.csv(
         day: +d.day,
         project: d.project,
         name: d.name,
-        startHh: d.start_hh,
-        startMm: d.start_mm,
-        endHh: d.end_hh,
-        endMm: d.end_mm,
+        startHh: +d.start_hh,
+        startMm: +d.start_mm,
+        endHh: +d.end_hh,
+        endMm: +d.end_mm,
       };
     },
     function(error, rows) {
       raw_data = rows;
-      console.log(rows);
 
       // Globals
       var width = 1500;
@@ -56,37 +55,59 @@ d3.csv(
           .call(calendarYAxis);
 
       // Calendar Heatmap
-      var minutesPerStep = 60,
-          stepHeight = calendarYScale(minutesPerStep / 60) - calendarYScale(0);
+      var heatmapMinutesPerStep = 10,
+          heatmapStepHeight = calendarYScale(heatmapMinutesPerStep / 60) - calendarYScale(0);
       var eventsByDay = d3.nest()
           .key(function(d) { return d.day; })
           .entries(rows);
-      var stepCounts = d3.merge(eventsByDay.map(function(kv) {
-          return dayEventsToStepCount(kv.values, minutesPerStep).map(function(d) { d.day = kv.key; return d; });
-      }));
+      var heatmapStepMinutes = nestedDayEventsToStepProjectMinutes(eventsByDay, heatmapMinutesPerStep);
 
-      console.log(stepCounts);
       var calendarHeatMapColorScale = d3.scale.linear()
-          .domain([0, d3.max(stepCounts, function(d) { return d.count; })])
+          .domain([0, d3.max(heatmapStepMinutes, function(d) { return d.minutes; })])
           .range(["white", "red"]);
 
-      calendar.append("g").selectAll(".step-bar").data(stepCounts).enter()
+      calendar.append("g").selectAll(".step-bar").data(heatmapStepMinutes).enter()
           .append("rect")
-          .attr("fill", function(d) { return calendarHeatMapColorScale(d.count); })
+          .attr("fill", function(d) { return calendarHeatMapColorScale(d.minutes); })
           .attr("width", calendarXScale.rangeBand() * calendarHeatmapWidthRatio)
-          .attr("height", stepHeight)
+          .attr("height", heatmapStepHeight)
           .attr("x", function(d) { return calendarXScale(+d.day) + calendarXPadding; })
-          .attr("y", function(d) { return calendarYScale(d.minute / 60) + calendarYPadding; });
-
-
-      /* calendar.append("rect").datum(20.33)
-        .attr("fill", "steelblue")
-        .attr("width", calendarXScale.rangeBand() / 2)
-        .attr("height", calendarCellHeight)
-        .attr("x", calendarXScale(2) + calendarXPadding)
-        .attr("y", function(d) { return calendarYScale(d) + calendarYPadding; }); */
+          .attr("y", function(d) { return calendarYScale(d.start / 60) + calendarYPadding; });
 
       // Calendar Side-barchart
+      var sideMinutesPerStep = 120,
+          sideStepYPadding = 2;
+          sideStepHeight = calendarYScale(sideMinutesPerStep / 60) - calendarYScale(0) - sideStepYPadding,
+          sideWidth = calendarXScale.rangeBand() * (1 - calendarHeatmapWidthRatio),
+          sideNumBars = 3;
+
+      var sideStepProjectMinutes = nestedDayEventsToStepProjectMinutes(eventsByDay, sideMinutesPerStep);
+      
+      var sideBarChartXScale = d3.scale.ordinal()
+          .domain(d3.range(0, sideNumBars))
+          .rangeRoundBands([0, sideWidth]);
+      var sideBarChartYScale = d3.scale.linear()
+          .domain([0, 1])
+          .range([0, sideStepHeight]);
+
+      var sideBarSelection = calendar.append("g");
+      sideStepProjectMinutes.forEach(function(el, i) {
+        var topProjects = Object.keys(el.project).map(function(d, i) { return {project: d, weight: el.project[d] / el.minutes}; })
+            .sort(function(a, b) { return b.weight - a.weight; })
+            .slice(0, sideNumBars);
+        sideBarSelection.selectAll(".side-bar").data(topProjects).enter()
+            .append("rect")
+            .attr("fill", "darkgray")
+            .attr("width", sideBarChartXScale.rangeBand())
+            .attr("height", function(d) { return sideBarChartYScale(d.weight); })
+            .attr("x", function(d, i) {
+                return calendarXScale(el.day) + calendarXScale.rangeBand() - sideWidth
+                    + sideBarChartXScale(i) + calendarXPadding; })
+            .attr("y", function(d, i) {
+                return calendarYScale(el.start / 60) + calendarYPadding + sideStepHeight
+                    - sideBarChartYScale(d.weight) + sideStepYPadding; });
+      }); // forEach
+      
       // Bottom Parameters
       var minDate = new Date(2015, 9 - 1, 4),
           maxDate = new Date(2015, 12 - 1, 9),
@@ -161,18 +182,47 @@ d3.csv(
  * Helper Functions
  */
 
-var dayEventsToStepCount = function(events, minutesPerStep) {
+var nestedDayEventsToStepProjectMinutes = function(eventsByDay, minutesPerStep) {
+  return d3.merge(eventsByDay.map(function(kv) {
+        return dayEventsToStepProjectMinutes(kv.values, minutesPerStep).map(function(d) { d.day = kv.key; return d; });
+      }));
+}
+
+var dayEventsToStepProjectMinutes = function(events, minutesPerStep) {
   var minuteKeys = d3.range(0, 24 * 60, minutesPerStep);
-  var keyAndCounts = minuteKeys.map(function(k) { return {minute: k, count: 0}; });
+  var keyAndProjectMinutes = minuteKeys.map(function(k) { return {start: k, minutes: 0, project:{}}; });
   events.forEach(function(e, i) {
     var startMinute = e.startHh * 60 + e.startMm;
     var endMinute = e.endHh * 60 + e.endMm;
-    keyAndCounts.forEach(function(kc, i) {
-      if (startMinute <= kc.minute && kc.minute <= endMinute)
-        kc.count++
+    keyAndProjectMinutes.forEach(function(kp, i) {
+      if (startMinute <= kp.start + minutesPerStep && kp.start <= endMinute) {
+        var overlap = Math.min(endMinute, kp.start + minutesPerStep) - Math.max(startMinute, kp.start);
+        kp.minutes += overlap;
+        if (overlap > 0) {
+          if (e.project in kp.project)
+            kp.project[e.project] += overlap;
+          else
+            kp.project[e.project] = overlap;
+        }
+      }
     });
   });
-  return keyAndCounts;
+  return keyAndProjectMinutes;
+}
+
+var dayEventsToHeatmapStepMinutes = function(events, minutesPerStep) {
+  var minuteKeys = d3.range(0, 24 * 60, minutesPerStep);
+  var keyAndMinutes = minuteKeys.map(function(k) { return {start: k, minutes: 0}; });
+  events.forEach(function(e, i) {
+    var startMinute = e.startHh * 60 + e.startMm;
+    var endMinute = e.endHh * 60 + e.endMm;
+    keyAndMinutes.forEach(function(kc, i) {
+      if (startMinute <= kc.start + minutesPerStep && kc.start <= endMinute) {
+        kc.minutes += Math.min(endMinute, kc.start + minutesPerStep) - Math.max(startMinute, kc.start);
+      }
+    });
+  });
+  return keyAndMinutes;
 }
 
 var getDurationMm = function(row) {
