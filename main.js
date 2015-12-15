@@ -23,9 +23,7 @@ d3.csv(
       var width = 1500;
 
       // Calendar Scales and Axis
-      var daysInWeek = 7,
-          hoursInDay = 24,
-          calendarHeight = 720,
+      var calendarHeight = 720,
           calendarXPadding = 40,
           calendarYPadding = 20,
           calendarHeatmapWidthRatio = 2 / 3;
@@ -75,7 +73,7 @@ d3.csv(
           .attr("y", function(d) { return calendarYScale(d.start / 60) + calendarYPadding; });
 
       // Calendar Side-barchart
-      var sideMinutesPerStep = 120,
+      var sideMinutesPerStep = 120, // modify grid lines too if changed
           sideStepYPadding = 2;
           sideStepHeight = calendarYScale(sideMinutesPerStep / 60) - calendarYScale(0) - sideStepYPadding,
           sideWidth = calendarXScale.rangeBand() * (1 - calendarHeatmapWidthRatio),
@@ -97,7 +95,7 @@ d3.csv(
             .slice(0, sideNumBars);
         sideBarSelection.selectAll(".side-bar").data(topProjects).enter()
             .append("rect")
-            .attr("fill", "darkgray")
+            .attr("fill", "steelblue")
             .attr("width", sideBarChartXScale.rangeBand())
             .attr("height", function(d) { return sideBarChartYScale(d.weight); })
             .attr("x", function(d, i) {
@@ -108,6 +106,24 @@ d3.csv(
                     - sideBarChartYScale(d.weight) + sideStepYPadding; });
       }); // forEach
       
+      // Calendar Grid
+      calendar.append("g").selectAll(".vertical").data(d3.range(1, 8)).enter()
+          .append("line")
+          .attr("stroke", "darkgray")
+          .attr("stroke-width", 2)
+          .attr("x1", function(d) { return calendarXScale(d) + calendarXPadding + calendarXScale.rangeBand(); })
+          .attr("x2", function(d) { return calendarXScale(d) + calendarXPadding + calendarXScale.rangeBand(); })
+          .attr("y1", calendarYPadding)
+          .attr("y2", calendarHeight);
+      calendar.append("g").selectAll(".horizontal").data(d3.range(0, 25)).enter()
+          .append("line")
+          .attr("stroke", function(d) { return (d % 2 == 0)? "darkgray" : "lightgray"; })
+          .attr("stroke-width", function(d) { return (d % 2 == 0)? 2 : 1; })
+          .attr("x1", calendarXPadding)
+          .attr("x2", width)
+          .attr("y1", function(d) { return calendarYScale(d) + calendarYPadding; })
+          .attr("y2", function(d) { return calendarYScale(d) + calendarYPadding; });
+
       // Bottom Parameters
       var minDate = new Date(2015, 9 - 1, 4),
           maxDate = new Date(2015, 12 - 1, 9),
