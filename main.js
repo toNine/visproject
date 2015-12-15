@@ -21,13 +21,71 @@ d3.csv(
       console.log(rows);
 
       // Globals
-      var width = 1000;
+      var width = 1500;
 
-      // Calendar Layout
+      // Calendar Scales and Axis
       var daysInWeek = 7,
-          hoursInDay = 24;
+          hoursInDay = 24,
+          calendarHeight = 720,
+          calendarXPadding = 40,
+          calendarYPadding = 20,
+          calendarHeatmapWidthRatio = 2 / 3;
+
+      var calendar = d3.select("body").append("svg")
+          .attr("width", width)
+          .attr("height", calendarHeight);
+
+      var calendarXScale = d3.scale.ordinal()
+          .domain(d3.range(1, 8))
+          .rangeRoundBands([0, width - calendarXPadding]);
+      var calendarYScale = d3.scale.linear()
+          .domain([0, 24])
+          .range([0, calendarHeight - calendarYPadding]);
+      var calendarXAxis = d3.svg.axis()
+          .orient("top")
+          .scale(calendarXScale);
+      var calendarYAxis = d3.svg.axis()
+          .orient("left")
+          .scale(calendarYScale);
+
+      calendar.append("g")
+          .attr("transform", "translate(" + calendarXPadding + ", " + calendarYPadding + ")")
+          .call(calendarXAxis);
+      calendar.append("g")
+          .attr("transform", "translate(" + calendarXPadding + ", " + calendarYPadding + ")")
+          .call(calendarYAxis);
 
       // Calendar Heatmap
+      var minutesPerStep = 60,
+          stepHeight = calendarYScale(minutesPerStep / 60) - calendarYScale(0);
+      var eventsByDay = d3.nest()
+          .key(function(d) { return d.day; })
+          .entries(rows);
+      var stepCounts = d3.merge(eventsByDay.map(function(kv) {
+          return dayEventsToStepCount(kv.values, minutesPerStep).map(function(d) { d.day = kv.key; return d; });
+      }));
+
+      console.log(stepCounts);
+      var calendarHeatMapColorScale = d3.scale.linear()
+          .domain([0, d3.max(stepCounts, function(d) { return d.count; })])
+          .range(["white", "red"]);
+
+      calendar.append("g").selectAll(".step-bar").data(stepCounts).enter()
+          .append("rect")
+          .attr("fill", function(d) { return calendarHeatMapColorScale(d.count); })
+          .attr("width", calendarXScale.rangeBand() * calendarHeatmapWidthRatio)
+          .attr("height", stepHeight)
+          .attr("x", function(d) { return calendarXScale(+d.day) + calendarXPadding; })
+          .attr("y", function(d) { return calendarYScale(d.minute / 60) + calendarYPadding; });
+
+
+      /* calendar.append("rect").datum(20.33)
+        .attr("fill", "steelblue")
+        .attr("width", calendarXScale.rangeBand() / 2)
+        .attr("height", calendarCellHeight)
+        .attr("x", calendarXScale(2) + calendarXPadding)
+        .attr("y", function(d) { return calendarYScale(d) + calendarYPadding; }); */
+
       // Calendar Side-barchart
       // Bottom Parameters
       var minDate = new Date(2015, 9 - 1, 4),
@@ -51,12 +109,12 @@ d3.csv(
       var bottomBarChartXScale = d3.time.scale()
           .domain([minDate, maxDate])
           .range([0, width - bottomBarChartXPadding]);
-      var bottomBarChartXAxis = d3.svg.axis()
-          .orient("bottom")
-          .scale(bottomBarChartXScale);
       var bottomBarChartYScale = d3.scale.linear()
           .domain([0, d3.max(weeklyMinutes, function(d) { return d.values; }) / 60])
           .range([bottomBarChartHeight - bottomBarChartYPadding, 0]);
+      var bottomBarChartXAxis = d3.svg.axis()
+          .orient("bottom")
+          .scale(bottomBarChartXScale);
       var bottomBarChartYAxis = d3.svg.axis()
           .orient("left")
           .scale(bottomBarChartYScale);
@@ -75,61 +133,48 @@ d3.csv(
 
       // Bottom week bars
       var weekBars = bottomBarChart.append("g").attr("class", "weekly-bars")
-        .selectAll(".weekBar")
-        .data(weeklyMinutes).enter()
-        .append("rect")
-        .attr("fill", "steelblue")
-        .attr("width", bottomBarChartXScale(weekAfterMinDate) - bottomBarChartXScale(minDate) - 1)
-        .attr("height", function(d) { return bottomBarChartHeight - bottomBarChartYPadding - bottomBarChartYScale(d.values / 60)})
-        .attr("x", function(d) { return bottomBarChartXScale(Date.parse(d.key)) + bottomBarChartXPadding; })
-        .attr("y", function(d) { return bottomBarChartYScale(d.values / 60); });
+          .selectAll(".weekBar")
+          .data(weeklyMinutes).enter()
+          .append("rect")
+          .attr("fill", "steelblue")
+          .attr("width", bottomBarChartXScale(weekAfterMinDate) - bottomBarChartXScale(minDate) - 1)
+          .attr("height", function(d) { return bottomBarChartHeight - bottomBarChartYPadding - bottomBarChartYScale(d.values / 60)})
+          .attr("x", function(d) { return bottomBarChartXScale(Date.parse(d.key)) + bottomBarChartXPadding; })
+          .attr("y", function(d) { return bottomBarChartYScale(d.values / 60); });
 
       // Bottom day bars
       var dailyBars = bottomBarChart.append("g").attr("class", "daily-bars")
-        .selectAll(".dayBar")
-        .data(dailyMinutes).enter()
-        .append("rect")
-        .attr("fill", "orange")
-        .attr("width", bottomBarChartXScale(dayAfterMinDate) - bottomBarChartXScale(minDate) - 1)
-        .attr("height" , function(d) { return bottomBarChartHeight - bottomBarChartYPadding - bottomBarChartYScale(d.values / 60)})
-        .attr("x", function(d) { return bottomBarChartXScale(Date.parse(d.key)) + bottomBarChartXPadding; })
-        .attr("y", function(d) { return bottomBarChartYScale(d.values / 60); });
+          .selectAll(".dayBar")
+          .data(dailyMinutes).enter()
+          .append("rect")
+          .attr("fill", "orange")
+          .attr("width", bottomBarChartXScale(dayAfterMinDate) - bottomBarChartXScale(minDate) - 1)
+          .attr("height" , function(d) { return bottomBarChartHeight - bottomBarChartYPadding - bottomBarChartYScale(d.values / 60)})
+          .attr("x", function(d) { return bottomBarChartXScale(Date.parse(d.key)) + bottomBarChartXPadding; })
+          .attr("y", function(d) { return bottomBarChartYScale(d.values / 60); });
 
       
       // Bottom Project Lines
-
-      /*
-      var barChartDomain = weekAggregate.map(function(el, i) { return el.key; });
-
-      var weekAggregateXScale = d3.scale.ordinal()
-          .domain(barChartDomain)
-          .rangeRoundBands([0, 1000]);
-      var xAxis = d3.svg.axis()
-          .scale(weekAggregateXScale)
-          .orient("bottom");
-
-          // x, y, width, height
-      barChart.selectAll(".bar")
-          .data(weekAggregate)
-          .enter().append("rect")
-          .attr("class", "bar")
-          .attr("fill", "steelblue")
-          .attr("x", function(d) { console.log(d); return weekAggregateXScale(d.key); })
-          .attr("y", function(d) { return weekAggregateYScale(d.values); })
-          .attr("width", 20)
-          .attr("height", function(d) {return 150 - weekAggregateYScale(d.values); });
-      // var weekBarWidth = 10;
-      // */
-
-      // weekAggregate.forEach(function(el, i) {
-        // console.log(Math.floor(el.values / 60) + ":" + el.values % 60);
-      // });
-
     });
 
 /*
  * Helper Functions
  */
+
+var dayEventsToStepCount = function(events, minutesPerStep) {
+  var minuteKeys = d3.range(0, 24 * 60, minutesPerStep);
+  var keyAndCounts = minuteKeys.map(function(k) { return {minute: k, count: 0}; });
+  events.forEach(function(e, i) {
+    var startMinute = e.startHh * 60 + e.startMm;
+    var endMinute = e.endHh * 60 + e.endMm;
+    keyAndCounts.forEach(function(kc, i) {
+      if (startMinute <= kc.minute && kc.minute <= endMinute)
+        kc.count++
+    });
+  });
+  return keyAndCounts;
+}
+
 var getDurationMm = function(row) {
   return (row.endHh - row.startHh) * 60 + (row.endMm - row.startMm);
 }
