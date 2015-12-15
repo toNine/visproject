@@ -23,7 +23,6 @@ d3.csv(
       var width = 1500;
       var containerSelection = d3.select("#container")
       containerSelection.style({"width": width, "margin": "auto"});
-          // .attr("margin", "0 auto")
 
       // Calendar Scales and Axis
       var calendarHeight = 600,
@@ -31,11 +30,6 @@ d3.csv(
           calendarTopPadding = 20,
           calendarBottomPadding = 20,
           calendarHeatmapWidthRatio = 0.75;
-
-      // var calendar = d3.select("body").append("svg")
-      var calendar = containerSelection.append("svg")
-          .attr("width", width)
-          .attr("height", calendarHeight + calendarBottomPadding);
 
       var calendarXScale = d3.scale.ordinal()
           .domain(d3.range(1, 8))
@@ -50,14 +44,16 @@ d3.csv(
           .orient("left")
           .scale(calendarYScale);
 
+      // Calendar Grid
+      var calendar = containerSelection.append("svg")
+          .attr("width", width)
+          .attr("height", calendarHeight + calendarBottomPadding);
       calendar.append("g")
           .attr("transform", "translate(" + calendarXPadding + ", " + calendarTopPadding + ")")
           .call(calendarXAxis);
       calendar.append("g")
           .attr("transform", "translate(" + calendarXPadding + ", " + calendarTopPadding + ")")
           .call(calendarYAxis);
-
-      // Calendar Grid
       calendar.append("g").selectAll(".vertical").data(d3.range(1, 8)).enter()
           .append("line")
           .attr("stroke", "darkgray")
@@ -116,7 +112,8 @@ d3.csv(
         var topProjects = Object.keys(el.project).map(function(d, i) { return {project: d, weight: el.project[d] / el.minutes}; })
             .sort(function(a, b) { return b.weight - a.weight; })
             .slice(0, sideNumBars);
-        sideBarSelection.selectAll(".side-bar").data(topProjects).enter()
+        var sideBarSingleSelection = sideBarSelection.selectAll(".side-bar").data(topProjects).enter().append("g");
+        sideBarSingleSelection
             .append("rect")
             .attr("fill", "dimgray")
             .attr("width", sideBarChartXScale.rangeBand())
@@ -126,7 +123,25 @@ d3.csv(
                     + sideBarChartXScale(i) + calendarXPadding; })
             .attr("y", function(d, i) {
                 return calendarYScale(el.start / 60) + calendarTopPadding + sideStepHeight
-                    - sideBarChartYScale(d.weight) + sideStepYPadding; });
+                    - sideBarChartYScale(d.weight) + sideStepYPadding; })
+            .on("mouseenter", function(d, i) {
+                var parentNodeSelection = d3.select(this.parentNode);
+                parentNodeSelection.select("text").style("visibility", "visible");
+            })
+            .on("mouseleave", function(d, i) {
+                var parentNodeSelection = d3.select(this.parentNode);
+                parentNodeSelection.select("text").style("visibility", "hidden");
+            })
+        sideBarSingleSelection.append("text")
+            .attr("fill", "blue")
+            .attr("x", function(d, i) {
+                return calendarXScale(el.day) + calendarXScale.rangeBand() - sideWidth
+                    + sideBarChartXScale(i) + calendarXPadding; })
+            .attr("y", function(d, i) {
+                return calendarYScale(el.start / 60) + calendarTopPadding + sideStepHeight
+                    - sideBarChartYScale(d.weight) + sideStepYPadding; })
+            .style("visibility", "hidden")
+            .text(function(d, i) { return d.project + "(" + (Math.floor(d.weight * 100)) + "%)";})
       }); // forEach
       
       // Bottom Parameters
@@ -276,8 +291,8 @@ d3.csv(
             overlayCalendarGroup.append("rect")
                 .attr("fill", projectColorScale(entry.project))
                 .attr("stroke", "black")
-                .attr("stroke-width", 3)
-                .attr("opacity", 0.8)
+                .attr("stroke-width", 2)
+                .attr("opacity", 0.7)
                 .attr("width", calendarXScale.rangeBand() * calendarHeatmapWidthRatio)
                 .attr("height", calendarYScale(end / 60) - calendarYScale(start / 60))
                 .attr("x", calendarXScale(dayOfWeek) + calendarXPadding)
@@ -322,15 +337,15 @@ d3.csv(
         // update bottom project lines overlay
         var projectData = bottomProjects.selectAll("." + classKey).data();
         projectData.forEach(function(d, i) {
+          var projectWeekHour = d3.sum(d.values, getDurationMm);
           overlayProjectGroup.append("text")
               .attr("stroke", "black")
-              .attr("stroke-width", 2)
               .attr("x", bottomBarChartXScale(Date.parse(d.key)) + bottomBarChartWeekWidth / 2 + bottomBarChartXPadding)
               .attr("y", bottomProjectYScale(d.project) + projectBarYPadding + projectHeight / 2)
               .attr("alignment-baseline", "middle")
               .attr("text-anchor", "middle")
-              .attr("font-size", 25)
-              .text(durationString(d3.sum(d.values, getDurationMm)))
+              .attr("font-size", 22)
+              .text(durationString(projectWeekHour) + " (" + (Math.floor(projectWeekHour / barChartData.values * 100))+ "%)")
         });
 
       }
