@@ -24,6 +24,7 @@ d3.csv(
           containerWidth = 1500
       var containerSelection = d3.select("#container")
       containerSelection.style({"width": containerWidth, "margin": "auto", "position": "relative"});
+      var daysOfWeek = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
 
       // Calendar Scales and Axis
       var calendarHeight = 600,
@@ -36,12 +37,15 @@ d3.csv(
       var calendarXScale = d3.scale.ordinal()
           .domain(d3.range(1, 8))
           .rangeRoundBands([0, width - calendarXPadding]);
+      var calendarAxisXScale = d3.scale.ordinal()
+          .domain(daysOfWeek)
+          .rangeRoundBands([0, width - calendarXPadding]);
       var calendarYScale = d3.scale.linear()
           .domain([0, 24])
           .range([0, calendarHeight - calendarTopPadding]);
       var calendarXAxis = d3.svg.axis()
           .orient("top")
-          .scale(calendarXScale);
+          .scale(calendarAxisXScale)
       var calendarYAxis = d3.svg.axis()
           .orient("left")
           .scale(calendarYScale);
